@@ -5,59 +5,118 @@ provider "aws" {
 module "waf" {
   source = "../.."
 
-  geo_match_statement_rules = [
+  visibility_config = {
+    cloudwatch_metrics_enabled = false
+    metric_name                = "rules-example-metric"
+    sampled_requests_enabled   = false
+  }
+
+  # https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-list.html
+  managed_rule_group_statement_rules = [
     {
-      name     = "rule-10"
-      action   = "count"
-      priority = 10
+      name     = "AWS-AWSManagedRulesAdminProtectionRuleSet"
+      priority = 1
 
       statement = {
-        country_codes = ["NL", "GB"]
+        name        = "AWSManagedRulesAdminProtectionRuleSet"
+        vendor_name = "AWS"
       }
 
       visibility_config = {
         cloudwatch_metrics_enabled = true
-        sampled_requests_enabled   = false
-        metric_name                = "rule-10-metric"
+        sampled_requests_enabled   = true
+        metric_name                = "AWS-AWSManagedRulesAdminProtectionRuleSet"
       }
     },
     {
-      name     = "rule-11"
-      action   = "allow"
-      priority = 11
+      name     = "AWS-AWSManagedRulesAmazonIpReputationList"
+      priority = 2
 
       statement = {
-        country_codes = ["US"]
+        name        = "AWSManagedRulesAmazonIpReputationList"
+        vendor_name = "AWS"
       }
 
       visibility_config = {
         cloudwatch_metrics_enabled = true
-        sampled_requests_enabled   = false
-        metric_name                = "rule-11-metric"
+        sampled_requests_enabled   = true
+        metric_name                = "AWS-AWSManagedRulesAmazonIpReputationList"
       }
-    }
-  ]
-
-  managed_rule_group_statement_rules = [
+    },
     {
-      name            = "rule-20"
-      override_action = "count"
-      priority        = 20
+      name     = "AWS-AWSManagedRulesCommonRuleSet"
+      priority = 3
 
       statement = {
         name        = "AWSManagedRulesCommonRuleSet"
         vendor_name = "AWS"
+      }
 
-        excluded_rule = [
-          "SizeRestrictions_QUERYSTRING",
-          "NoUserAgent_HEADER"
+      visibility_config = {
+        cloudwatch_metrics_enabled = true
+        sampled_requests_enabled   = true
+        metric_name                = "AWS-AWSManagedRulesCommonRuleSet"
+      }
+    },
+    {
+      name     = "AWS-AWSManagedRulesKnownBadInputsRuleSet"
+      priority = 4
+
+      statement = {
+        name        = "AWSManagedRulesKnownBadInputsRuleSet"
+        vendor_name = "AWS"
+      }
+
+      visibility_config = {
+        cloudwatch_metrics_enabled = true
+        sampled_requests_enabled   = true
+        metric_name                = "AWS-AWSManagedRulesKnownBadInputsRuleSet"
+      }
+    },
+    # https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-bot.html
+    {
+      name     = "AWS-AWSManagedRulesBotControlRuleSet"
+      priority = 5
+
+      statement = {
+        name        = "AWSManagedRulesBotControlRuleSet"
+        vendor_name = "AWS"
+
+        rule_action_override = {
+          CategoryHttpLibrary = {
+            action = "block"
+            custom_response = {
+              response_code = "404"
+              response_header = {
+                name  = "example-1"
+                value = "example-1"
+              }
+            }
+          }
+          SignalNonBrowserUserAgent = {
+            action = "count"
+            custom_request_handling = {
+              insert_header = {
+                name  = "example-2"
+                value = "example-2"
+              }
+            }
+          }
+        }
+
+        managed_rule_group_configs = [
+          {
+            aws_managed_rules_bot_control_rule_set = {
+              inspection_level = "COMMON"
+            }
+          }
         ]
       }
 
       visibility_config = {
-        cloudwatch_metrics_enabled = false
-        sampled_requests_enabled   = false
-        metric_name                = "rule-20-metric"
+        cloudwatch_metrics_enabled = true
+        sampled_requests_enabled   = true
+        metric_name                = "AWS-AWSManagedRulesBotControlRuleSet"
       }
     }
   ]
@@ -203,6 +262,106 @@ module "waf" {
         cloudwatch_metrics_enabled = false
         sampled_requests_enabled   = false
         metric_name                = "rule-70-metric"
+      }
+    }
+  ]
+
+  geo_match_statement_rules = [
+    {
+      name     = "rule-80"
+      action   = "count"
+      priority = 80
+
+      statement = {
+        country_codes = ["NL", "GB"]
+      }
+
+      visibility_config = {
+        cloudwatch_metrics_enabled = false
+        sampled_requests_enabled   = false
+        metric_name                = "rule-80-metric"
+      }
+    },
+    {
+      name     = "rule-11"
+      action   = "allow"
+      priority = 11
+
+      statement = {
+        country_codes = ["US"]
+      }
+
+      visibility_config = {
+        cloudwatch_metrics_enabled = false
+        sampled_requests_enabled   = false
+        metric_name                = "rule-11-metric"
+      }
+    }
+  ]
+
+  geo_allowlist_statement_rules = [
+    {
+      name     = "rule-90"
+      priority = 90
+
+      statement = {
+        country_codes = ["US"]
+      }
+
+      visibility_config = {
+        cloudwatch_metrics_enabled = false
+        sampled_requests_enabled   = false
+        metric_name                = "rule-90-metric"
+      }
+    }
+  ]
+
+  regex_match_statement_rules = [
+    {
+      name     = "rule-100"
+      priority = 100
+      action   = "block"
+
+      statement = {
+        regex_string = "^/admin"
+
+        text_transformation = [
+          {
+            priority = 90
+            type     = "COMPRESS_WHITE_SPACE"
+          }
+        ]
+
+        field_to_match = {
+          uri_path = {}
+        }
+      }
+
+      visibility_config = {
+        cloudwatch_metrics_enabled = false
+        sampled_requests_enabled   = false
+        metric_name                = "rule-100-metric"
+      }
+    }
+  ]
+
+  ip_set_reference_statement_rules = [
+    {
+      name     = "rule-110"
+      priority = 110
+      action   = "block"
+
+      statement = {
+        ip_set = {
+          ip_address_version = "IPV4"
+          addresses          = ["17.0.0.0/8"]
+        }
+      }
+
+      visibility_config = {
+        cloudwatch_metrics_enabled = false
+        sampled_requests_enabled   = false
+        metric_name                = "rule-110-metric"
       }
     }
   ]
